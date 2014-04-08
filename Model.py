@@ -19,14 +19,6 @@ def orbitPlotSat(center,outer):
 # orbit - Program to compute the orbit of a comet.
 #clear all;  help orbit;  % Clear memory and print header
 
-# Set initial position and velocity of the comet.
-# r0 = float(raw_input("Enter initial radial distance (AU): "))
-# v0 = float(raw_input("Enter initial tangential velocity (AU/yr): "))
-# matrices are ordered in radial distance from the sun (i.e. the sun first ,jupiter last)
-# TODO: Read these from file that contains values in kg/m/s units, and translate
-# r = np.array([[1.0022,0.],[0.,0.],[1.,0.],[1.0024,0.],[1.52,0.],[5.2,0.]])
-# v = np.array([[0.,6.493185],[0.,0.],[0.,6.283185],[0.,6.0],[0.,5.09634],[0.,2.75536]])
-
 
 # decrease units by ~9 orders of magnitude
 au = 1.496e11
@@ -41,7 +33,6 @@ v = np.array([[0.,0.],[0.,3.5e4],[0.,earthV],[0.,earthV + 1.022e3],[0.,2.408e4],
 # convert from m,s to au,year
 r = r/au
 v = v * velConversion
-# 6.493185
 # manually create the sun
 state = np.array([[ r[0,0], r[0,1], v[0,0], v[0,1] ]])
 pCount = 1
@@ -52,15 +43,17 @@ while pCount < totalPlanets:
 
 #Set physical parameters (mass, G*M)
 GM = 4*np.pi**2      # Grav. const. * Mass of Sun (au^3/yr^2)
-# GM = 6.674e-11         # Grav. const. 
 # mass in fraction of sun mass
-# mass = np.array([3.7e-14,1.,3.e-6,3.7e-8,3.3e-7,9.5e-4])
 mass = np.array([1.989e30,4.8676e24,5.972e24,7.348e22,6.418e23,1.899e27])
 # conver to solar masses
 mass = mass/solarMass
-#mass = np.array([(1./3.)*1.e6,1.,316.+(2./3.)])
-adaptErr = 10.# Error parameter used by adaptive Runge-Kutta
+adaptErr = 1.# Error parameter used by adaptive Runge-Kutta
 time = 0.0
+
+####################################################################
+## Build the solar system model that the spacecraft can be placed ##
+## in. Never recalculate data that already exists                 ##
+####################################################################
 
 #%* Loop over desired number of steps using specified
 #%  numerical method.
@@ -147,8 +140,6 @@ satMass = 1.
 # satMass = 4.8676e24
 ###########
 
-# r = r/au
-# v = v * velConversion
 satMass = satMass/solarMass
 state = np.array([r[0],r[1],v[0],v[1]])
 step = 0

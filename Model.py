@@ -58,8 +58,9 @@ time = 0.0
 #%* Loop over desired number of steps using specified
 #%  numerical method.
 tau =  float(raw_input("Enter time step (yr): "))
+duration = float(raw_input("Enter duration (yr): "))
 NumericalMethod = 4
-maxSteps = int(1./tau)
+maxSteps = int(duration/tau)
 filename = 'dat/solarSystem_'+str(maxSteps)+'_'+str(tau)+'.txt'
 if(os.path.isfile(filename)):
   print('Loading file from data store')

@@ -110,7 +110,7 @@ else:
 
     state = em.EulerCromer(state,mass,time,tau,em.gravmatrk)
     r = np.copy(state[:,0:2])
-    v = np.copy(state[:,2:4])
+    # v = np.copy(state[:,2:4])
     # print(v)
     # time = time + tau
   print('|')
@@ -133,7 +133,7 @@ print('Planet model built')
 # v = np.array([0.,earthV-3.075e3])
 r = [(au+4.2164e7)/au,0.]
 v = [0.,(earthV-3.075e3)*velConversion]
-satMass = 1.
+satMass = 5.
 
 ## TEST ###
 # r = np.array([1.28939e11,0.])
@@ -150,13 +150,15 @@ if(os.path.isfile(filename)):
   rSComp = np.loadtxt(filename)
   print('Satellite path loaded from data store')
 else:
+  totalSteps = len(tplot)
+  print('Calculating satellite path')
   # rSComp = np.array(np.array([r]))
   rSComp = [r]
   # points to interp over
   planets = np.copy(rComp[step:step+3])
   [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[1],tau,em.gravSat)
   r = np.copy(state[0:2])
-  v = np.copy(state[2:4])
+  # v = np.copy(state[2:4])
   step += 1
   # print(rComp[step-1:step+2])
   for time in tplot[2:-1]:
@@ -166,12 +168,16 @@ else:
     planets = np.copy(rComp[step-1:step+2])
     [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[time],tau,em.gravSat)
     r = np.copy(state[0:2])
-    v = np.copy(state[2:4])
+    # v = np.copy(state[2:4])
     step += 1
+    if(step%(int(totalSteps/10))==0):
+      print('-',end='')
+    elif(step%(int(totalSteps/50))==0):
+      print('-',end='')
   #### TODO: Build method to load data to file, then build another function that turns it into a video
   rSComp = np.array(rSComp)
   np.savetxt(filename,rSComp)
-  print('Satellite path calculated')
+  print('\nSatellite path calculated')
 
 # Plot the whole system
 fig = plt.figure(1); plt.clf()  #Clear figure 1 window and bring forward

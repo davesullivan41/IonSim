@@ -111,7 +111,7 @@ def shipEngine(position,velocity,mass,tau):
     # exhaustVelocity = 6.324 # au/year
   if mass > 2.51e-31:
     newMass = mass-3.06e-32*tau
-    dv = (velocity/np.linalg.norm(velocity))*6.324*np.log(mass/newMass)
+    dv = (velocity/np.linalg.norm(velocity))*6.324*np.log(mass/newMass)/tau
     return [dv,newMass]
   else:
     return [[0.,0.],mass]

@@ -30,6 +30,7 @@ def EulerCromer(x,mass,t,tau,derivs):
 def EulerCromerSat(x,planets,mass,planetMass,t,tau,derivs):
   # Number of steps satellite takes between each planet step
   scale = 100.
+  newMass = mass
   # Decrease tau
   smallTau = tau/scale
   # Create scale between t-tau and t
@@ -40,11 +41,11 @@ def EulerCromerSat(x,planets,mass,planetMass,t,tau,derivs):
     # Interpolate position of each planet at time
     planetLoc = intrpf(time,interpTime,planets)
     # Calculate acceleration of satellite
-    [dx,mass] = derivs(x,planetLoc,mass,planetMass,time,smallTau)
+    [dx,newMass] = derivs(x,planetLoc,newMass,planetMass,time,smallTau)
     # EulerCromer
     x[2:4] += dx[2:4]*smallTau
     x[0:2] += x[2:4]*smallTau
-  return x,mass
+  return x,newMass
 
 def gravSat(s,planets,mass,planetMass,t,tau):
   body = 0
@@ -58,10 +59,10 @@ def gravSat(s,planets,mass,planetMass,t,tau):
       accel = accel - GM*planetMass[body]*(s[0:2]-planet)/diff**3
     body += 1
   # acceleration from the satellite's engines
-  [satAccel,mass] = shipEngine(s[0:2],s[2:4],mass,tau)
+  [satAccel,newMass] = shipEngine(s[0:2],s[2:4],mass,tau)
   accel += satAccel
   derivs = np.array([s[2],s[3],accel[0],accel[1]])
-  return derivs,mass
+  return derivs,newMass
 
 def gravmatrk(s,mass,t,tau):
   #%  Returns right-hand side of Kepler ODE; used by Runge-Kutta routines
@@ -108,9 +109,9 @@ def shipEngine(position,velocity,mass,tau):
   # massLoss = 3.333e-9 # kg/s
   # massLoss = 3.06e-32 # solar masses per second
   # exhaustVelocity = 30000 # m/s
-    # exhaustVelocity = 6.324 # au/year
+  # exhaustVelocity = 6.324 # au/year
   if mass > 2.51e-31:
-    newMass = mass-3.06e-32*tau
+    newMass = mass-6.*3.06e-32*tau
     dv = (velocity/np.linalg.norm(velocity))*6.324*np.log(mass/newMass)/tau
     return [dv,newMass]
   else:

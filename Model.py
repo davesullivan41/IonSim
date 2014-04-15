@@ -94,7 +94,7 @@ else:
       print('|',end="")
     elif(istep%(maxSteps/50) == 0):
       print('-',end="")
-    #%* Record position and energy for plotting.
+    #%* Record position for plotting.
     # Initially set the arrays for the first step
     if istep == 0:
       # record both r components
@@ -104,17 +104,9 @@ else:
       rComp = np.append(rComp,np.array([r]),axis=0)
       tplot = np.append(tplot,time)
 
-    # orbit count break
-    # if(istep > 2 and thplot[-2,4] < 0 and thplot[-1,4] >= 0):
-      # break  
-
     state = em.EulerCromer(state,mass,time,tau,em.gravmatrk)
     r = np.copy(state[:,0:2])
-    # v = np.copy(state[:,2:4])
-    # print(v)
-    # time = time + tau
   print('|')
-  #myPub = PdfPages('ExB.pdf')
 
   with file(filename,'w') as outfile:
     for planet in range(0,totalPlanets):
@@ -129,11 +121,9 @@ print('Planet model built')
 ## into the system and have it accelerate away from starting point##
 ####################################################################
 ## Probably need to decrease time step to ~ minutes or seconds
-# r = np.array([au+4.2164e7,0.])
-# v = np.array([0.,earthV-3.075e3])
 r = [(au+4.2164e7)/au,0.]
 v = [0.,(earthV-3.075e3)*velConversion]
-satMass = 5.
+satMass = 4.
 
 ## TEST ###
 # r = np.array([1.28939e11,0.])
@@ -142,18 +132,22 @@ satMass = 5.
 ###########
 
 satMass = satMass/solarMass
+massPlot = [satMass]
 state = np.array([r[0],r[1],v[0],v[1]])
 step = 0
 
 filename = 'dat/satellite_'+str(maxSteps)+'_'+str(tau)+'.txt'
-if(os.path.isfile(filename)):
+massFilename = 'dat/mass_'+str(maxSteps)+'_'+str(tau)+'.txt'
+if(os.path.isfile(filename) and os.path.isfile(massFilename)):
   rSComp = np.loadtxt(filename)
+  massPlot = np.loadtxt(massFilename)
   print('Satellite path loaded from data store')
 else:
   totalSteps = len(tplot)
   print('Calculating satellite path')
   # rSComp = np.array(np.array([r]))
   rSComp = [r]
+  vSComp = [v]
   # points to interp over
   planets = np.copy(rComp[step:step+3])
   [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[1],tau,em.gravSat)
@@ -161,9 +155,12 @@ else:
   # v = np.copy(state[2:4])
   step += 1
   # print(rComp[step-1:step+2])
+  print('|',end='')
   for time in tplot[2:-1]:
     # rSComp = np.append(rSComp,np.array([r]),axis=0)
     rSComp.append(r.tolist())
+    massPlot.append(satMass)
+    # vSComp.append(np.copy(state[2:4]).tolist())
     # points to interp over
     planets = np.copy(rComp[step-1:step+2])
     [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[time],tau,em.gravSat)
@@ -171,13 +168,20 @@ else:
     # v = np.copy(state[2:4])
     step += 1
     if(step%(int(totalSteps/10))==0):
-      print('-',end='')
+      print('|',end='')
     elif(step%(int(totalSteps/50))==0):
       print('-',end='')
-  #### TODO: Build method to load data to file, then build another function that turns it into a video
+  print('|')
   rSComp = np.array(rSComp)
+  massPlot = np.array(massPlot)
   np.savetxt(filename,rSComp)
-  print('\nSatellite path calculated')
+  np.savetxt(massFilename,massPlot)
+  print('Satellite path calculated')
+
+
+
+
+v = np.linalg.norm(state[2:4])/ velConversion
 
 # Plot the whole system
 fig = plt.figure(1); plt.clf()  #Clear figure 1 window and bring forward
@@ -199,5 +203,21 @@ satOrbitR = np.sqrt((rSComp[:,0]-rComp[1:-1,2,0])**2 + (rSComp[:,1]-rComp[1:-1,2
 plt.plot(satOrbitR)
 plt.title('Satellite distance from Earth')
 
+try:
+  rNorm = np.linalg.norm(rSComp)
+  vSquared = [v**2]
+  for i in range(1,len(rSComp)):
+    vSquared.append(((rSComp[i,0]-rSComp[i-1,0])/(tau*velConversion))**2+((rSComp[i,1]-rSComp[i-1,1])/(tau*velConversion))**2)
+
+  kEnergy = 0.5*massPlot*vSquared
+  pEnergy = GM*massPlot/rNorm
+  fig = plt.figure(5)
+  plt.plot(kEnergy)
+  plt.plot(pEnergy)
+  plt.legend(['Kinetic Energy','Potential Energy'])
+  print('Velocity of satellite:'+str(np.sqrt(vSquared[-1])))
+  print('Mass of satellite:'+str(massPlot[-1]*solarMass)+'kg')
+except NameError:
+  print('Attempted to use old data file for satellite -- mass values not recorded')
 
 plt.show()

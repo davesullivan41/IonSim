@@ -61,6 +61,7 @@ tau =  float(raw_input("Enter time step (yr): "))
 duration = float(raw_input("Enter duration (yr): "))
 NumericalMethod = 4
 maxSteps = int(duration/tau)
+# Note -- only use longest data collection period
 filename = 'dat/solarSystem_'+str(maxSteps)+'_'+str(tau)+'.txt'
 if(os.path.isfile(filename)):
   print('Loading file from data store')
@@ -104,6 +105,7 @@ else:
       rComp = np.append(rComp,np.array([r]),axis=0)
       tplot = np.append(tplot,time)
 
+    ##### This is the line that calculates the new positions of each planet ####
     state = em.EulerCromer(state,mass,time,tau,em.gravmatrk)
     r = np.copy(state[:,0:2])
   print('|')
@@ -123,13 +125,7 @@ print('Planet model built')
 ## Probably need to decrease time step to ~ minutes or seconds
 r = [(au+4.2164e7)/au,0.]
 v = [0.,(earthV-3.075e3)*velConversion]
-satMass = 4.
-
-## TEST ###
-# r = np.array([1.28939e11,0.])
-# v = np.array([0,3.5e4])
-# satMass = 4.8676e24
-###########
+satMass = 3.
 
 satMass = satMass/solarMass
 massPlot = [satMass]
@@ -138,7 +134,9 @@ step = 0
 
 filename = 'dat/satellite_'+str(maxSteps)+'_'+str(tau)+'.txt'
 massFilename = 'dat/mass_'+str(maxSteps)+'_'+str(tau)+'.txt'
+# Check if data for this run has already been calculated
 if(os.path.isfile(filename) and os.path.isfile(massFilename)):
+  # Load data from appropriate files
   rSComp = np.loadtxt(filename)
   massPlot = np.loadtxt(massFilename)
   print('Satellite path loaded from data store')
@@ -154,8 +152,9 @@ else:
   r = np.copy(state[0:2])
   # v = np.copy(state[2:4])
   step += 1
-  # print(rComp[step-1:step+2])
   print('|',end='')
+  # Time step when the satellite runs out of fuel
+  outOfFuel =0
   for time in tplot[2:-1]:
     # rSComp = np.append(rSComp,np.array([r]),axis=0)
     rSComp.append(r.tolist())
@@ -163,9 +162,16 @@ else:
     # vSComp.append(np.copy(state[2:4]).tolist())
     # points to interp over
     planets = np.copy(rComp[step-1:step+2])
+    #### This is the line that calculates the new position and mass for the satellite #####
     [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[time],tau,em.gravSat)
     r = np.copy(state[0:2])
+
+    if (satMass == massPlot[-1] and outOfFuel == 0):
+      outOfFuel = 1
+      print('Out of fuel on step '+str(step))
+
     # v = np.copy(state[2:4])
+    # Progress bar
     step += 1
     if(step%(int(totalSteps/10))==0):
       print('|',end='')
@@ -181,43 +187,71 @@ else:
 
 
 
-v = np.linalg.norm(state[2:4])/ velConversion
+# v = np.linalg.norm(state[2:4])/ velConversion
+
+# Calculate Energy
+try:
+  rNorm = np.sqrt(rSComp[:,0]**2 + rSComp[:,1]**2)
+  vSquared = [np.linalg.norm(v)**2]
+  for i in range(1,len(rSComp)):
+    vSquared.append(((rSComp[i,0]-rSComp[i-1,0])/(tau*velConversion))**2+((rSComp[i,1]-rSComp[i-1,1])/(tau*velConversion))**2)
+
+  kEnergy = 0.5*massPlot*vSquared
+  # G*M = 1.327e20 m^3 /s^2
+  pEnergy = (1.327e20*massPlot)/(rNorm*au)
+  # calculate the time step when the satellite reached escape velocity
+  escapeStep = 0
+  for i in range(0,len(kEnergy)):
+    if kEnergy[i] > pEnergy[i]:
+      escapeStep = i
+      break
+  print('Final velocity of satellite:'+str(round(np.sqrt(vSquared[-1]),2))+'m/s')
+  print('Final mass of satellite:'+str(round(massPlot[-1]*solarMass,3))+'kg')
+except NameError:
+  print('Attempted to use old data file for satellite -- mass values not recorded')
+
+
+# Calculate when teh satellite crossed jupiter orbit -- for jupiter flyby
+jupiterStep = 0
+for i in range(0,len(rNorm)):
+  if rNorm[i] > rComp[0,-1,0]:
+    jupiterStep = i
+    break
+
+# print('Step when satellite crossed jupiter orbit :'+str(jupiterStep))
+# print('S Coords:'+str(rSComp[jupiterStep,0])+', '+str(rSComp[jupiterStep,1]))
+# print('J coords:'+str(rComp[jupiterStep,-1,0])+', '+str(rComp[jupiterStep,-1,1]))
+
 
 # Plot the whole system
 fig = plt.figure(1); plt.clf()  #Clear figure 1 window and bring forward
 orbitPlot(0,[1,2,3,4,5],rComp,fig,names)
+plt.plot(rSComp[:,0],rSComp[:,1])
+plt.plot(rSComp[escapeStep,0],rSComp[escapeStep,1],'o')
+# plt.plot(rSComp[jupiterStep,0],rSComp[jupiterStep,1],'o')
 plt.xlabel('Distance (AU)')
 plt.grid('on')
 
+# The following two plot statements are only used if you want to just observe the satellite
 # Satellite trajectory from Earth frame
-fig = plt.figure(2)
-# orbitPlot(2,[3],rComp,fig,names)
-plt.plot(rSComp[:,0] - rComp[1:-1,2,0],rSComp[:,1]-rComp[1:-1,2,1])
+# fig = plt.figure(2)
+# # orbitPlot(2,[3],rComp,fig,names)
+# plt.plot(rSComp[:,0] - rComp[1:-1,2,0],rSComp[:,1]-rComp[1:-1,2,1])
 
 # Satellite trajectory from Solar frame
-fig = plt.figure(3)
-plt.plot(rComp[:,2,0],rComp[:,2,1],rSComp[:,0],rSComp[:,1])
+# fig = plt.figure(3)
+# plt.plot(rComp[:,2,0],rComp[:,2,1],rSComp[:,0],rSComp[:,1])
 
+# Show the satellites distance from earth
 fig = plt.figure(4)
 satOrbitR = np.sqrt((rSComp[:,0]-rComp[1:-1,2,0])**2 + (rSComp[:,1]-rComp[1:-1,2,1])**2)
 plt.plot(satOrbitR)
 plt.title('Satellite distance from Earth')
 
-try:
-  rNorm = np.linalg.norm(rSComp)
-  vSquared = [v**2]
-  for i in range(1,len(rSComp)):
-    vSquared.append(((rSComp[i,0]-rSComp[i-1,0])/(tau*velConversion))**2+((rSComp[i,1]-rSComp[i-1,1])/(tau*velConversion))**2)
-
-  kEnergy = 0.5*massPlot*vSquared
-  pEnergy = GM*massPlot/rNorm
-  fig = plt.figure(5)
-  plt.plot(kEnergy)
-  plt.plot(pEnergy)
-  plt.legend(['Kinetic Energy','Potential Energy'])
-  print('Velocity of satellite:'+str(np.sqrt(vSquared[-1])))
-  print('Mass of satellite:'+str(massPlot[-1]*solarMass)+'kg')
-except NameError:
-  print('Attempted to use old data file for satellite -- mass values not recorded')
+# Show the energy so we know exactly when the satellite escaped the sun's gravity well
+fig = plt.figure(5)
+plt.plot(kEnergy)
+plt.plot(pEnergy)
+plt.legend(['Kinetic Energy','Potential Energy'])
 
 plt.show()

@@ -27,6 +27,39 @@ def EulerCromer(x,mass,t,tau,derivs):
   x[:,0:2] = x[:,0:2] + x[:,2:4]*tau
   return x
 
+def gravmatrk(s,mass,t,tau):
+  count = 0
+  # Loop through each planet
+  for body1 in s:
+    # r1 = body1[0:2]
+    # v1 = body1[2:4]
+    accel = np.array([0.0,0.0])
+    massCount = 0
+    if count == 0:
+      for body2 in s:
+        # r2 = body2[0:2]
+        # v2 = body2[2:4]
+        # Distance to body2
+        diff = np.linalg.norm(body1[0:2]-body2[0:2])
+        if(diff != 0):
+          # force from planets
+          accel += - GM*mass[massCount]*(body1[0:2]-body2[0:2])/diff**3
+        massCount += 1
+      derivs = np.array([[body1[2], body1[3], accel[0], accel[1]]])
+    else:
+      for body2 in s:
+        # r2 = body2[0:2]
+        # v2 = body2[2:4]
+        # Distance to body2
+        diff = np.linalg.norm(body1[0:2]-body2[0:2])
+        if(diff != 0):
+          # force form planets
+          accel +=  - GM*mass[massCount]*(body1[0:2]-body2[0:2])/diff**3
+        massCount += 1
+      derivs = np.append(derivs,np.array([[body1[2], body1[3], accel[0],accel[1]]]),0)
+    count += 1
+  return derivs
+
 def EulerCromerSat(x,planets,mass,planetMass,t,tau,derivs):
   # Number of steps satellite takes between each planet step
   scale = 100.
@@ -64,54 +97,15 @@ def gravSat(s,planets,mass,planetMass,t,tau):
   derivs = np.array([s[2],s[3],accel[0],accel[1]])
   return derivs,newMass
 
-def gravmatrk(s,mass,t,tau):
-  #%  Returns right-hand side of Kepler ODE; used by Runge-Kutta routines
-  #%  Inputs
-  #%    s      State matrix [[r(1) r(2) v(1) v(2)],[r(1) r(2) v(1) v(2)]]
-  #     mass   mass vector [m(1),m(2)]
-  #%    t      Time (not used)
-  #%  Output
-  #%    deriv  Derivatives [[dr(1)/dt dr(2)/dt dv(1)/dt dv(2)/dt],[dr(1)/dt dr(2)/dt dv(1)/dt dv(2)/dt]]
-  count = 0
-  # Loop through each planet
-  for body1 in s:
-    # r1 = body1[0:2]
-    # v1 = body1[2:4]
-    accel = np.array([0.0,0.0])
-    massCount = 0
-    # Possibly keep sun motionless
-    if count == 0:
-      for body2 in s:
-        # r2 = body2[0:2]
-        # v2 = body2[2:4]
-        # Distance to body2
-        diff = np.linalg.norm(body1[0:2]-body2[0:2])
-        if(diff != 0):
-          # force from planets
-          accel += - GM*mass[massCount]*(body1[0:2]-body2[0:2])/diff**3
-        massCount += 1
-      derivs = np.array([[body1[2], body1[3], accel[0], accel[1]]])
-    else:
-      for body2 in s:
-        # r2 = body2[0:2]
-        # v2 = body2[2:4]
-        # Distance to body2
-        diff = np.linalg.norm(body1[0:2]-body2[0:2])
-        if(diff != 0):
-          # force form planets
-          accel +=  - GM*mass[massCount]*(body1[0:2]-body2[0:2])/diff**3
-        massCount += 1
-      derivs = np.append(derivs,np.array([[body1[2], body1[3], accel[0],accel[1]]]),0)
-    count += 1
-  return derivs
-
 def shipEngine(position,velocity,mass,tau):
-  # massLoss = 3.333e-9 # kg/s
-  # massLoss = 3.06e-32 # solar masses per second
+  # massLoss = 3.333e-6 # kg/s
+  # massLoss = 1.68e-32 # solar masses per second
   # exhaustVelocity = 30000 # m/s
   # exhaustVelocity = 6.324 # au/year
-  if mass > 2.51e-31:
-    newMass = mass-6.*3.06e-32*tau
+  # massPerEngine = 100g = 5.03e-32 solar masses
+  engineCount = 12.
+  if mass > (2.51e-31+engineCount*5.03e-32):
+    newMass = mass-engineCount*1.68e-32*tau
     dv = (velocity/np.linalg.norm(velocity))*6.324*np.log(mass/newMass)/tau
     return [dv,newMass]
   else:

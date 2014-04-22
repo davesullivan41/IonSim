@@ -4,32 +4,34 @@ import matplotlib.pyplot as plt
 import Euler_Methods as em
 import os.path
 
+# Plotting helper function
 def orbitPlot(center,moons,r,figure,names):
   plt.plot(0.,0.,'o')
   for index in moons:
     plt.plot(r[:,index,0]-r[:,center,0],r[:,index,1]-r[:,center,1])
 
   plt.title(names[center]+' and satellites')
-
-def orbitPlotSat(center,outer):
-  plt.plot(0.,0.,'o')
-  plt.plot(outer[:,0]-center[:,0],outer[:,1]-center[:,1])
  
 
-# orbit - Program to compute the orbit of a comet.
-#clear all;  help orbit;  % Clear memory and print header
+####################################################################
+## Planet data -- masses, positions, etc                          ##
+####################################################################
+
+## angle for jupiter intercept (1.7kg, 4 engines):
+# jIntAngle = -0.528589893765
 
 
-# decrease units by ~9 orders of magnitude
 au = 1.496e11
 earthV = 2.978e4
 solarMass = 1.989e30
 velConversion = 2.108e-4
 names = ['Sun','Venus','Earth','Moon','Mars','Jupiter']
-# r = np.array([[au+5e7,0.],[0.,0.],[au,0.],[au+3.633e8,0.],[2.289e11,0.],[7.785e11,0.]])
-# v = np.array([[0.,earthV + 6e3],[0.,0.],[0.,earthV],[0.,earthV + 1.022e3],[0.,2.408e4],[0.,1.307e4]])
 r = np.array([[0.,0.],[1.0894e11,0.],[au,0.],[au+3.633e8,0.],[2.289e11,0.],[7.785e11,0.]])
 v = np.array([[0.,0.],[0.,3.5e4],[0.,earthV],[0.,earthV + 1.022e3],[0.,2.408e4],[0.,1.307e4]])
+# Only for jupiter intercept demo
+# r = np.array([[0.,0.],[1.0894e11,0.],[au,0.],[au+3.633e8,0.],[2.289e11,0.],[np.cos(jIntAngle)*7.785e11,np.sin(jIntAngle)*7.785e11]])
+# v = np.array([[0.,0.],[0.,3.5e4],[0.,earthV],[0.,earthV + 1.022e3],[0.,2.408e4],[-np.sin(jIntAngle)*1.307e4,np.cos(jIntAngle)*1.307e4]])
+
 # convert from m,s to au,year
 r = r/au
 v = v * velConversion
@@ -59,6 +61,8 @@ time = 0.0
 #%  numerical method.
 tau =  float(raw_input("Enter time step (yr): "))
 duration = float(raw_input("Enter duration (yr): "))
+initialMass = float(raw_input("Enter fuel count (kg): "))
+engineCount = float(raw_input("Enter number of engines: "))
 NumericalMethod = 4
 maxSteps = int(duration/tau)
 # Note -- only use longest data collection period
@@ -86,8 +90,7 @@ if(os.path.isfile(filename)):
 else:
   orbits = 0
   maxOrbits = 2
-  ## TODO: Make loop stop at predetermined time, not after running out of moves
-  print('Loading...')
+  print('Building Solar System Model...')
   for istep in range(0,maxSteps):
 
     # Progress bar
@@ -106,7 +109,7 @@ else:
       tplot = np.append(tplot,time)
 
     ##### This is the line that calculates the new positions of each planet ####
-    state = em.EulerCromer(state,mass,time,tau,em.gravmatrk)
+    state = em.EulerCromer(state,mass,time,tau,em.gravMat)
     r = np.copy(state[:,0:2])
   print('|')
 
@@ -122,10 +125,9 @@ print('Planet model built')
 ## Now that the solar system has been built, place the spacecraft ##
 ## into the system and have it accelerate away from starting point##
 ####################################################################
-## Probably need to decrease time step to ~ minutes or seconds
 r = [(au+4.2164e7)/au,0.]
 v = [0.,(earthV-3.075e3)*velConversion]
-satMass = 3.
+satMass = initialMass
 
 satMass = satMass/solarMass
 massPlot = [satMass]
@@ -134,6 +136,7 @@ step = 0
 
 filename = 'dat/satellite_'+str(maxSteps)+'_'+str(tau)+'.txt'
 massFilename = 'dat/mass_'+str(maxSteps)+'_'+str(tau)+'.txt'
+
 # Check if data for this run has already been calculated
 if(os.path.isfile(filename) and os.path.isfile(massFilename)):
   # Load data from appropriate files
@@ -148,7 +151,7 @@ else:
   vSComp = [v]
   # points to interp over
   planets = np.copy(rComp[step:step+3])
-  [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[1],tau,em.gravSat)
+  [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,engineCount,tplot[1],tau,em.gravSat)
   r = np.copy(state[0:2])
   # v = np.copy(state[2:4])
   step += 1
@@ -163,7 +166,7 @@ else:
     # points to interp over
     planets = np.copy(rComp[step-1:step+2])
     #### This is the line that calculates the new position and mass for the satellite #####
-    [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,tplot[time],tau,em.gravSat)
+    [state,satMass] = em.EulerCromerSat(state,planets,satMass,mass,engineCount,tplot[time],tau,em.gravSat)
     r = np.copy(state[0:2])
 
     if (satMass == massPlot[-1] and outOfFuel == 0):
@@ -184,10 +187,13 @@ else:
   np.savetxt(massFilename,massPlot)
   print('Satellite path calculated')
 
+####################################################################
+## Calculate the energy of the satellite to determine when it has ##
+## reached the escape velocity of the solar solarSystem           ##
+## Note that this is only an approximation, escape velocity does  ##
+## not always occur when kinetic energy overcomes potential       ##
+####################################################################
 
-
-
-# v = np.linalg.norm(state[2:4])/ velConversion
 
 # Calculate Energy
 try:
@@ -218,17 +224,34 @@ for i in range(0,len(rNorm)):
     jupiterStep = i
     break
 
+
+# The following is all to figure out how to create a jupiter fly-by
+satAngle = np.arctan2(rSComp[jupiterStep,1],rSComp[jupiterStep,0])
+jupiterAngle = np.arctan2(rComp[jupiterStep,-1,1],rComp[jupiterStep,-1,0])
+
+newEarthAngle = satAngle-jupiterAngle
+newEarthX = np.cos(satAngle - jupiterAngle)
+newEarthY = -np.sin(satAngle - jupiterAngle)
+
+# print(newEarthAngle)
+# print(newEarthX)
+# print(newEarthY)
+
 # print('Step when satellite crossed jupiter orbit :'+str(jupiterStep))
 # print('S Coords:'+str(rSComp[jupiterStep,0])+', '+str(rSComp[jupiterStep,1]))
 # print('J coords:'+str(rComp[jupiterStep,-1,0])+', '+str(rComp[jupiterStep,-1,1]))
+
+####################################################################
+## Produce plots of the satellites position and energy            ##
+####################################################################
 
 
 # Plot the whole system
 fig = plt.figure(1); plt.clf()  #Clear figure 1 window and bring forward
 orbitPlot(0,[1,2,3,4,5],rComp,fig,names)
 plt.plot(rSComp[:,0],rSComp[:,1])
+# Plot the point at which the satellite reaches escape velocity
 plt.plot(rSComp[escapeStep,0],rSComp[escapeStep,1],'o')
-# plt.plot(rSComp[jupiterStep,0],rSComp[jupiterStep,1],'o')
 plt.xlabel('Distance (AU)')
 plt.grid('on')
 

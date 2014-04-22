@@ -21,13 +21,15 @@ def intrpf(xi,x,y):
   + (xi-x[0])*(xi-x[1])/((x[2]-x[0])*(x[2]-x[1]))*y[2];
   return (yi);
 
+# Euler-Cromer approximation method using derivs to find the new velocity and acceleration
 def EulerCromer(x,mass,t,tau,derivs):
   dx = derivs(x,mass,t,tau)
   x[:,2:4] = x[:,2:4] + dx[:,2:4]*tau
   x[:,0:2] = x[:,0:2] + x[:,2:4]*tau
   return x
 
-def gravmatrk(s,mass,t,tau):
+# Returns the new velocity and acceleration due to the gravitational force of each object in s on each other object in s
+def gravMat(s,mass,t,tau):
   count = 0
   # Loop through each planet
   for body1 in s:
@@ -60,7 +62,9 @@ def gravmatrk(s,mass,t,tau):
     count += 1
   return derivs
 
-def EulerCromerSat(x,planets,mass,planetMass,t,tau,derivs):
+# Euler-Cromer approximation method that interpolates new planet coordinates between the coordinates given in planets
+# Used to model the spaceship
+def EulerCromerSat(x,planets,mass,planetMass,engineCount,t,tau,derivs):
   # Number of steps satellite takes between each planet step
   scale = 100.
   newMass = mass
@@ -74,13 +78,14 @@ def EulerCromerSat(x,planets,mass,planetMass,t,tau,derivs):
     # Interpolate position of each planet at time
     planetLoc = intrpf(time,interpTime,planets)
     # Calculate acceleration of satellite
-    [dx,newMass] = derivs(x,planetLoc,newMass,planetMass,time,smallTau)
+    [dx,newMass] = derivs(x,planetLoc,newMass,planetMass,engineCount,time,smallTau)
     # EulerCromer
     x[2:4] += dx[2:4]*smallTau
     x[0:2] += x[2:4]*smallTau
   return x,newMass
 
-def gravSat(s,planets,mass,planetMass,t,tau):
+# Returns the new velocity and acceleration on teh spaceship due to the gravitational force from all the planets
+def gravSat(s,planets,mass,planetMass,engineCount,t,tau):
   body = 0
   accel = np.array([0.,0.])	
   # Loop over each planet
@@ -92,18 +97,19 @@ def gravSat(s,planets,mass,planetMass,t,tau):
       accel = accel - GM*planetMass[body]*(s[0:2]-planet)/diff**3
     body += 1
   # acceleration from the satellite's engines
-  [satAccel,newMass] = shipEngine(s[0:2],s[2:4],mass,tau)
+  [satAccel,newMass] = shipEngine(s[0:2],s[2:4],mass,engineCount,tau)
   accel += satAccel
   derivs = np.array([s[2],s[3],accel[0],accel[1]])
   return derivs,newMass
 
-def shipEngine(position,velocity,mass,tau):
+# This is the function that implements simulating an ion engine
+def shipEngine(position,velocity,mass,engineCount,tau):
   # massLoss = 3.333e-6 # kg/s
   # massLoss = 1.68e-32 # solar masses per second
   # exhaustVelocity = 30000 # m/s
   # exhaustVelocity = 6.324 # au/year
   # massPerEngine = 100g = 5.03e-32 solar masses
-  engineCount = 12.
+  # engineCount = 12.
   if mass > (2.51e-31+engineCount*5.03e-32):
     newMass = mass-engineCount*1.68e-32*tau
     dv = (velocity/np.linalg.norm(velocity))*6.324*np.log(mass/newMass)/tau

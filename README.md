@@ -13,3 +13,5 @@ Here you can see the kinetic and potential energies of the satellite as it accel
 
 The program works by pre-building a model of the solar system using an Euler-Cromer method, which allows for more flexibility and accuracy than a simple Kepler's laws derivation. Then the satellite is inserted into this system near geosync and acceleration begins. The entire trajectory of the satellite is calculated, saved to a data file, and then plots are produced. Data processing for the example case shown above took approximately 20 minutes on a mid-range desktop computer. 
 
+A careful observer will notice that no planets further away than Jupiter are considered in this model. This approximation was made in order to decrease the complexity of the simulation and because the satellite is clearly able to escape the solar system without influence from any of the planets beyond Jupiter. I ran tests that included Saturn and its effect on the trajectory of the satellite was only significant when the satellite came within close proximity to the planet. 
+

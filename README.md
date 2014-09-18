@@ -1,7 +1,7 @@
 IonSim
 ======
 
-Python based simulation of an ion engine accelerating through the solar system
+Python based simulation of an ion engine accelerating through the solar system. This program was partially motivated by an attempt to prove the technical viability of the business idea in [this elevator pitch](https://www.youtube.com/watch?v=m1IhtxvTHQ8), delivered by myself at the 2014 Rice Undergraduate Elevator Pitch Competition.
 
 ======
 
